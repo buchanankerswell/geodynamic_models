@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 # Aspect build for macos arm64
 set -e
 
@@ -6,7 +7,7 @@ set -e
 BASEDIR="$PWD"
 
 # Create build directory
-BUILDDIR="assets/models/aspect_2.5"
+BUILDDIR="$BASEDIR/assets/models/aspect_2.5"
 DEPDIR="$BUILDDIR/dependencies"
 
 if [ -d "$BUILDDIR" ]; then
@@ -15,38 +16,28 @@ if [ -d "$BUILDDIR" ]; then
 fi
 
 mkdir -p "$BUILDDIR" && mkdir -p "$DEPDIR"
-echo "Directory '$BUILDDIR' created ..."
-echo "============================================="
 
-# Install dealii and dependencies with candi
 echo "Cloning candi from: https://github.com/dealii/candi ..."
 echo "Changing to candi version 9.4.0-r2 ..."
 echo "see https://github.com/dealii/candi/issues/309#issuecomment-1386276193"
 echo "============================================="
-git clone git@github.com:dealii/candi.git "$DEPDIR"
-cd "$DEPDIR/candi" && git checkout 438b4a1 && cd "$BASEDIR"
-echo "============================================="
+git clone -q git@github.com:dealii/candi.git "$DEPDIR/candi" && cd "$DEPDIR/candi" && \
+	git checkout -q 438b4a1 && cd "$BASEDIR"
 
-# Install dealii and dependencies
-echo "Installing dealii v9.4.0 dependencies to: '$DEPDIR/dealii' ..."
+echo "Installing dealii v9.4.0 dependencies ..."
 echo "============================================="
-./$DEPDIR/candi/candi.sh -j 8 -p "$DEPDIR/dealii" --packages="trilinos p4est dealii"
-echo "============================================="
+cd "$DEPDIR/candi" && { echo -e "\n"; echo -e "\n"; } | \
+	./candi.sh -j 8 -p "$DEPDIR/dealii" --packages="trilinos p4est dealii" && \
+	rm -rf "$DEPDIR/dealii/tmp" && cd "$BASEDIR"
 
-# Install aspect
-# https://github.com/geodynamics/aspect
 echo "Cloning aspect from: https://github.com/geodynamics/aspect ..."
 echo "Changing to aspect version 2.5 ..."
 echo "============================================="
-git clone git@github.com:geodynamics/aspect.git "$DEPDIR"
-cd "$DEPDIR/aspect" && git checkout aspect-2.5 && cd "$BASEDIR"
-# Enable dealii
-. $DEPDIR/dealii/configuration/enable.sh
-echo "============================================="
+git clone git@github.com:geodynamics/aspect.git "$DEPDIR/aspect" && cd "$DEPDIR/aspect" && \
+	git checkout aspect-2.5 && source $DEPDIR/dealii/configuration/enable.sh && cd "$BASEDIR"
 
-# Build "out of source" aspect 2.5
 echo "Installing aspect v2.5 ..."
 echo "============================================="
-cd "$BUILDDIR"
-cmake $DEPDIR/aspect && make
-echo "============================================="
+cd "$BUILDDIR" && cmake $DEPDIR/aspect && make && cd "$BASEDIR"
+
+echo "aspect v2.5 build successful!"

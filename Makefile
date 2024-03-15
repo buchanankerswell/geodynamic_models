@@ -9,7 +9,7 @@ MODELDIR = assets/models
 SHBUILDS = $(BUILDDIR)/aspect-2.5.sh
 # Cleanup directories
 DATAPURGE = log
-DATACLEAN =
+DATACLEAN = $(MODELDIR)
 
 all: $(LOGFILE) $(MODELDIR) $(SHBUILDS)
 
