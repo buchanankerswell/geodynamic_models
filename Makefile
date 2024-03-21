@@ -1,41 +1,55 @@
 # Logging config
 DATE = $(shell date +"%d-%m-%Y")
-LOGFILE := log/log-$(DATE)
+LOGFILE := $(CURDIR)/log/log-$(DATE)
 LOG := 2>&1 | tee -a $(LOGFILE)
-# Directories with build scripts and models 
-BUILDDIR = assets/build_scripts
-MODELDIR = assets/models
-# Build scripts
-SHBUILDS = $(BUILDDIR)/aspect-2.5.sh
-# Geodynamic models
-ASPECT = $(MODELDIR)/aspect_2.5
-# Aspect setup
-PRM ?= $(ASPECT)/dependencies/aspect/cookbooks/convection-box/convection-box.prm
+# Install scripts
+INSTALLDIR = $(CURDIR)/assets/install
+# Aspect 
+ASPECTINSTALL = $(INSTALLDIR)/aspect-2.5.sh
+ASPECTPATH = $(CURDIR)/assets/aspect_2.5
+ASPECTCB = $(ASPECTPATH)/deps/aspect/cookbooks
+ASPECTPRM ?= $(ASPECTCB)/convection-box/convection-box.prm
+# LaMEM
+LAMEMPATH = $(INSTALLDIR)/lamem
+LAMEMCB = $(CURDIR)/assets/examples/lamem
+LAMEMPRM ?= $(LAMEMCB)/sphere.jl
+# Global params
 NPROC ?= 8
 # Cleanup directories
 DATAPURGE = log
-DATACLEAN = $(MODELDIR)
+DATACLEAN = $(ASPECTPATH)
 
-all: $(LOGFILE) $(MODELDIR) $(SHBUILDS)
+all: $(LOGFILE) $(ASPECTINSTALL)
 
-run_aspect_model: $(ASPECT)
-	@echo "Running aspect model:" $(LOG) && echo "$(PRM)" $(LOG)
-	@mpirun -np $(NPROC) ./$(ASPECT)/aspect $(PRM) $(LOG)
+aspect_model: install_aspect
+	@echo "Running aspect model:" $(LOG) && echo "$(ASPECTPRM)" $(LOG)
+	@mpirun -np $(NPROC) $(ASPECTPATH)/aspect $(ASPECTPRM) $(LOG)
 	@echo "=============================================" $(LOG)
 
-$(ASPECT): $(LOGFILE) $(MODELDIR) $(SHBUILDS)
-	@if [ ! -d "$(ASPECT)" ]; then \
-		./$(BUILDDIR)/aspect-2.5.sh $(LOG); \
+install_aspect: $(LOGFILE) $(ASPECTINSTALL)
+	@if [ ! -d "$(ASPECTPATH)" ]; then \
+		$(INSTALLDIR)/aspect-2.5.sh $(CURDIR) $(ASPECTPATH) $(LOG); \
 	else \
-		echo "aspect v.25 found!" $(LOG); \
+		echo "aspect v2.5 found!" $(LOG); \
 	fi
 	@echo "=============================================" $(LOG)
 
-$(MODELDIR):
-	@if [ ! -d "$(MODELDIR)" ]; then \
-		mkdir -p "$(MODELDIR)"; \
-	fi
+lamem_model: $(LOGFILE) instantiate_lamem
+	@julia --project=$(LAMEMPATH) $(LAMEMPRM) $(LOG)
 	@echo "=============================================" $(LOG)
+
+instantiate_lamem: $(LOGFILE) $(LAMEMPATH) check_julia
+	@julia -e "using Pkg; Pkg.activate(\"$(LAMEMPATH)\");  Pkg.instantiate()" $(LOG)
+	@echo "=============================================" $(LOG)
+
+check_julia:
+	@if command -v julia &> /dev/null; then \
+		echo "Found Julia!" $(LOG); \
+	else \
+		echo "Error: Julia is not installed on this system!" $(LOG); \
+		echo "Install Julia with:" $(LOG); \
+		echo "'curl -fsSL https://install.julialang.org | sh'" $(LOG); \
+	fi
 
 $(LOGFILE):
 	@if [ ! -e "$(LOGFILE)" ]; then \
@@ -49,4 +63,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN)
 
-.PHONY: clean purge run_aspect_model all
+.PHONY: clean purge build_underworld_model2 install_aspect aspect_model all
