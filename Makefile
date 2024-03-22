@@ -12,11 +12,11 @@ ASPECTPRM ?= $(ASPECTCB)/convection-box/convection-box.prm
 # LaMEM
 LAMEMPATH = $(INSTALLDIR)/lamem
 LAMEMCB = $(CURDIR)/assets/examples/lamem
-LAMEMPRM ?= $(LAMEMCB)/sphere.jl
+LAMEMJL ?= $(LAMEMCB)/sphere.jl
 # Global params
 NPROC ?= 8
 # Cleanup directories
-DATAPURGE = log
+DATAPURGE = log $(CURDIR)/*_lamem
 DATACLEAN = $(ASPECTPATH)
 
 all: $(LOGFILE) $(ASPECTINSTALL)
@@ -24,6 +24,10 @@ all: $(LOGFILE) $(ASPECTINSTALL)
 aspect_model: install_aspect
 	@echo "Running aspect model:" $(LOG) && echo "$(ASPECTPRM)" $(LOG)
 	@mpirun -np $(NPROC) $(ASPECTPATH)/aspect $(ASPECTPRM) $(LOG)
+	@echo "=============================================" $(LOG)
+
+lamem_model: $(LOGFILE) install_lamem
+	@julia --project=$(LAMEMPATH) $(LAMEMJL) $(LOG)
 	@echo "=============================================" $(LOG)
 
 install_aspect: $(LOGFILE) $(ASPECTINSTALL)
@@ -34,11 +38,7 @@ install_aspect: $(LOGFILE) $(ASPECTINSTALL)
 	fi
 	@echo "=============================================" $(LOG)
 
-lamem_model: $(LOGFILE) instantiate_lamem
-	@julia --project=$(LAMEMPATH) $(LAMEMPRM) $(LOG)
-	@echo "=============================================" $(LOG)
-
-instantiate_lamem: $(LOGFILE) $(LAMEMPATH) check_julia
+install_lamem: $(LOGFILE) $(LAMEMPATH) check_julia
 	@julia -e "using Pkg; Pkg.activate(\"$(LAMEMPATH)\");  Pkg.instantiate()" $(LOG)
 	@echo "=============================================" $(LOG)
 
